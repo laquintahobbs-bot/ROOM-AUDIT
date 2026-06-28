@@ -1,0 +1,310 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Quinta Hobbs - Room Audit Scanner</title>
+    <!-- Tailwind CSS for clean, rapid mobile styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Html5-Qrcode Library for native device camera scanning -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        /* Smooth transition for active tab content viewports */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans antialiased selection:bg-teal-500">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-teal-400 rounded-full animate-pulse"></div>
+            <h1 class="text-md font-bold tracking-wide uppercase text-gray-200">LQ Hobbs Room Auditor</h1>
+        </div>
+        <span id="operator-badge" class="text-xs bg-gray-700 text-teal-300 font-medium px-2.5 py-1 rounded-md border border-teal-900/50">
+            Front Desk Shift
+        </span>
+    </header>
+
+    <!-- App Bottom Tab Controls -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 flex justify-around py-2 z-50 shadow-xl">
+        <button onclick="switchTab('scan-tab')" id="btn-scan-tab" class="flex flex-col items-center space-y-1 text-teal-400 font-medium text-xs py-1 transition-colors duration-150">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>Scan QR</span>
+        </button>
+        <button onclick="switchTab('audit-tab')" id="btn-audit-tab" class="flex flex-col items-center space-y-1 text-gray-400 font-medium text-xs py-1 transition-colors duration-150">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            <span>Active Audit</span>
+        </button>
+        <button onclick="switchTab('logs-tab')" id="btn-logs-tab" class="flex flex-col items-center space-y-1 text-gray-400 font-medium text-xs py-1 transition-colors duration-150">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+            <span>Logs</span>
+        </button>
+    </nav>
+
+    <!-- Main Content Containers -->
+    <main class="p-4 mb-20 max-w-md mx-auto">
+
+        <!-- TAB 1: QR CODE CAMERA SCANNER -->
+        <section id="scan-tab" class="tab-content active space-y-4">
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm text-center">
+                <h2 class="text-lg font-semibold text-gray-100">Scan Room QR Code</h2>
+                <p class="text-xs text-gray-400 mt-1">Point camera directly at the plaque outside the guestroom door.</p>
+                
+                <!-- Scanner Frame Target Area -->
+                <div class="mt-4 overflow-hidden rounded-lg bg-black border-2 border-dashed border-gray-700 relative" style="min-height: 250px;">
+                    <div id="qr-reader" class="w-full"></div>
+                </div>
+                
+                <div class="mt-4 flex flex-col space-y-2">
+                    <button onclick="startScanner()" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2.5 rounded-lg text-sm transition-all shadow-md active:scale-95">
+                        Initialize Camera
+                    </button>
+                    <!-- Manual Override input field if camera permissions are blocked or QR is damaged -->
+                    <div class="flex items-center space-x-2 mt-2">
+                        <input id="manual-room" type="number" placeholder="Enter Room #" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-teal-500 text-white">
+                        <button onclick="loadManualRoom()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-lg text-sm font-medium">Go</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: THE "TIGHT FIVE" DYNAMIC PRE-ARRIVAL CHECKLIST -->
+        <section id="audit-tab" class="tab-content space-y-4">
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm">
+                <div class="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-white tracking-tight">ROOM <span id="active-room-display" class="text-teal-400">---</span></h2>
+                        <p class="text-xs text-gray-400">Pre-Check-In Tight Five Verification</p>
+                    </div>
+                    <button onclick="abortAudit()" class="text-xs text-red-400 hover:underline bg-red-950/30 px-2 py-1 rounded border border-red-900/50">Cancel Audit</button>
+                </div>
+
+                <!-- Interactive Checklist Form -->
+                <form id="audit-form" class="space-y-3" onsubmit="submitAudit(event)">
+                    <!-- Item 1 -->
+                    <label class="flex items-start p-3 bg-gray-900 rounded-lg border border-gray-700/60 cursor-pointer hover:border-gray-600 transition-all select-none">
+                        <input type="checkbox" required class="mt-1 w-5 h-5 rounded text-teal-600 focus:ring-0 focus:ring-offset-0 bg-gray-800 border-gray-600 checked:bg-teal-500">
+                        <div class="ml-3">
+                            <span class="text-sm font-bold text-gray-100 block">1. Hair Check (Zero-Tolerance)</span>
+                            <span class="text-xs text-gray-400">Tub, shower tiles, basin floor, bathroom corners, vanity countertop 100% hair-free.</span>
+                        </div>
+                    </label>
+
+                    <!-- Item 2 -->
+                    <label class="flex items-start p-3 bg-gray-900 rounded-lg border border-gray-700/60 cursor-pointer hover:border-gray-600 transition-all select-none">
+                        <input type="checkbox" required class="mt-1 w-5 h-5 rounded text-teal-600 focus:ring-0 focus:ring-offset-0 bg-gray-800 border-gray-600 checked:bg-teal-500">
+                        <div class="ml-3">
+                            <span class="text-sm font-bold text-gray-100 block">2. Linen & Bed Quality</span>
+                            <span class="text-xs text-gray-400">Pulled back top sheets to ensure no stains underneath. Towels fresh and crisp.</span>
+                        </div>
+                    </label>
+
+                    <!-- Item 3 -->
+                    <label class="flex items-start p-3 bg-gray-900 rounded-lg border border-gray-700/60 cursor-pointer hover:border-gray-600 transition-all select-none">
+                        <input type="checkbox" required class="mt-1 w-5 h-5 rounded text-teal-600 focus:ring-0 focus:ring-offset-0 bg-gray-800 border-gray-600 checked:bg-teal-500">
+                        <div class="ml-3">
+                            <span class="text-sm font-bold text-gray-100 block">3. Surface & Corner Wipe</span>
+                            <span class="text-xs text-gray-400">Ran hand over table tops, nightstands, TV stand base. No dust, smudges or rings.</span>
+                        </div>
+                    </label>
+
+                    <!-- Item 4 -->
+                    <label class="flex items-start p-3 bg-gray-900 rounded-lg border border-gray-700/60 cursor-pointer hover:border-gray-600 transition-all select-none">
+                        <input type="checkbox" required class="mt-1 w-5 h-5 rounded text-teal-600 focus:ring-0 focus:ring-offset-0 bg-gray-800 border-gray-600 checked:bg-teal-500">
+                        <div class="ml-3">
+                            <span class="text-sm font-bold text-gray-100 block">4. Tech & Climate Check</span>
+                            <span class="text-xs text-gray-400">TV Remote present/sanitized. Split-unit AC/Heater cycles on cleanly without odd noise.</span>
+                        </div>
+                    </label>
+
+                    <!-- Item 5 -->
+                    <label class="flex items-start p-3 bg-gray-900 rounded-lg border border-gray-700/60 cursor-pointer hover:border-gray-600 transition-all select-none">
+                        <input type="checkbox" required class="mt-1 w-5 h-5 rounded text-teal-600 focus:ring-0 focus:ring-offset-0 bg-gray-800 border-gray-600 checked:bg-teal-500">
+                        <div class="ml-3">
+                            <span class="text-sm font-bold text-gray-100 block">5. Essentials & Clothes Hangers</span>
+                            <span class="text-xs text-gray-400">Fresh roll of toilet paper + backup placed. Minimum of 4 hangers verified in closet.</span>
+                        </div>
+                    </label>
+
+                    <!-- Maintenance / Remarks Toggle Field -->
+                    <div class="pt-2">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Maintenance Remarks / Issues Found</label>
+                        <textarea id="audit-remarks" rows="2" placeholder="Leave blank if perfect. Report minor fixes or tech repair details here..." class="w-full bg-gray-900 border border-gray-700 rounded-lg text-sm p-2 focus:outline-none focus:border-teal-500 text-white"></textarea>
+                    </div>
+
+                    <!-- Dual Submit Actions -->
+                    <div class="grid grid-cols-2 gap-3 pt-3">
+                        <button type="button" onclick="failRoom()" class="w-full bg-red-900/40 border border-red-700 text-red-200 hover:bg-red-900/60 font-bold py-3 rounded-xl text-sm transition-all shadow-md">
+                            ❌ FAIL ROOM
+                        </button>
+                        <button type="submit" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-md">
+                            ✅ PASS & CLEAR
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 3: LOCAL STORAGE HISTORY LOGS -->
+        <section id="logs-tab" class="tab-content space-y-4">
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-white">Shift Audit History</h2>
+                    <button onclick="clearLogs()" class="text-xs text-gray-400 hover:text-red-400 underline">Clear Log</button>
+                </div>
+                <!-- Interactive Log Feed Target -->
+                <div id="log-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    <!-- Dynamic updates fall here -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Core App Logic Javascript Engine -->
+    <script>
+        let currentActiveRoom = null;
+        let html5QrcodeScanner = null;
+
+        // Interactive View Controller Setup
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Tab highlight color swapping
+            const tabs = ['scan-tab', 'audit-tab', 'logs-tab'];
+            tabs.forEach(t => {
+                const button = document.getElementById(`btn-${t}`);
+                if(t === tabId) {
+                    button.classList.add('text-teal-400');
+                    button.classList.remove('text-gray-400');
+                } else {
+                    button.classList.remove('text-teal-400');
+                    button.classList.add('text-gray-400');
+                }
+            });
+
+            if (tabId === 'logs-tab') { renderLogs(); }
+        }
+
+        // Active Camera Scanner Operations
+        function startScanner() {
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            }
+            
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                // Parse standard URL paths or plain text string formats
+                let roomNum = decodedText.split('/').pop().replace(/\D/g, ''); 
+                if(!roomNum) roomNum = decodedText.replace(/\D/g, '');
+                
+                if(roomNum) {
+                    html5QrcodeScanner.stop().then(() => {
+                        loadRoomAudit(roomNum);
+                    }).catch(err => console.error(err));
+                }
+            };
+
+            const config = { fps: 10, qrbox: { width: 200, height: 200 } };
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+                .catch(err => alert("Camera initialization blocked. Please allow permissions or input room manually."));
+        }
+
+        function loadManualRoom() {
+            const val = document.getElementById('manual-room').value.trim();
+            if(val) { loadRoomAudit(val); }
+        }
+
+        function loadRoomAudit(roomNumber) {
+            currentActiveRoom = roomNumber;
+            document.getElementById('active-room-display').innerText = roomNumber;
+            document.getElementById('audit-form').reset();
+            switchTab('audit-tab');
+        }
+
+        function abortAudit() {
+            currentActiveRoom = null;
+            switchTab('scan-tab');
+        }
+
+        // Clean Submissions Handling
+        function submitAudit(e) {
+            e.preventDefault();
+            if(!currentActiveRoom) return;
+
+            saveLogEntry({
+                room: currentActiveRoom,
+                status: 'PASSED',
+                remarks: document.getElementById('audit-remarks').value || 'Immaculate - Ready for Check-in',
+                timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+
+            alert(`Room ${currentActiveRoom} has been marked PASSED and cleared for guest arrival.`);
+            switchTab('scan-tab');
+        }
+
+        function failRoom() {
+            if(!currentActiveRoom) return;
+            const remarks = document.getElementById('audit-remarks').value.trim();
+            if(!remarks) {
+                alert("Please add a note in the Remarks section stating why this room failed the audit.");
+                return;
+            }
+
+            saveLogEntry({
+                room: currentActiveRoom,
+                status: 'FAILED',
+                remarks: remarks,
+                timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+
+            alert(`Room ${currentActiveRoom} marked FAILED. Order routed immediately back to supervisor.`);
+            switchTab('scan-tab');
+        }
+
+        // Session Persistence Local Storage Functions
+        function saveLogEntry(entry) {
+            let logs = JSON.parse(localStorage.getItem('lq_audit_logs')) || [];
+            logs.unshift(entry); // Prepend new data to front of stack
+            localStorage.setItem('lq_audit_logs', JSON.stringify(logs));
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-list');
+            let logs = JSON.parse(localStorage.getItem('lq_audit_logs')) || [];
+            
+            if(logs.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-gray-500 text-xs">No entries recorded on this shift yet.</div>`;
+                return;
+            }
+
+            container.innerHTML = logs.map(log => `
+                <div class="bg-gray-900 p-3 rounded-lg border ${log.status === 'PASSED' ? 'border-teal-900/40' : 'border-red-900/40'} flex justify-between items-start">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-black text-white">RM ${log.room}</span>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${log.status === 'PASSED' ? 'bg-teal-950 text-teal-400 border border-teal-900' : 'bg-red-950 text-red-400 border border-red-900'}">
+                                ${log.status}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-400 leading-normal">${log.remarks}</p>
+                    </div>
+                    <span class="text-[10px] text-gray-500 whitespace-nowrap">${log.timestamp}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearLogs() {
+            if(confirm("Clear local storage log history? This action cannot be reversed.")) {
+                localStorage.removeItem('lq_audit_logs');
+                renderLogs();
+            }
+        }
+    </script>
+</body>
+</html>
+
+```
